@@ -1,4 +1,5 @@
 from fastapi import Body, FastAPI, HTTPException, Query
+from pydantic import BaseModel
 
 app = FastAPI(title="Mini Blog")
 
@@ -20,6 +21,20 @@ BLOG_POSTS = [
         "content": "Este es el contenido de mi tercer post"
     }
 ]
+
+
+class PostBase(BaseModel):
+    title: str
+    content: str
+
+
+class PostCreate(PostBase):
+    pass
+
+
+class PostUpdate(BaseModel):
+    title: str
+    content: str
 
 
 @app.get("/")
@@ -55,28 +70,20 @@ def get_post(post_id: int, include_content: bool = Query(default=True, descripti
 
 
 @app.post("/posts")
-def create_post(post: dict = Body(...)):
-    if "title" not in post or "content" not in post:
-        return {"error": "El título y contenido son requeridos"}
-
-    if not str(post["title"]).strip():
-        return {"error": "El título no puede estar vacío"}
-    if not str(post["content"]).strip():
-        return {"error": "El contenido no puede estar vacío"}
-
+def create_post(post: PostCreate):
     new_id = max(post["id"] for post in BLOG_POSTS) + 1 if BLOG_POSTS else 1
 
-    new_post = {"id": new_id, **post}
+    new_post = {"id": new_id, **post.model_dump()}
 
     BLOG_POSTS.append(new_post)
     return {"message": "Post creado", "data": new_post}
 
 
 @app.put("/posts/{post_id}")
-def update_post(post_id: int, data: dict = Body(...)):
+def update_post(post_id: int, data: PostUpdate):
     for post in BLOG_POSTS:
         if post["id"] == post_id:
-            post_updated = {**post, **data}
+            post_updated = {**post, **data.model_dump(exclude_unset=True)}
             index = BLOG_POSTS.index(post)
             BLOG_POSTS[index] = post_updated
             return {"message": f"Post {post["id"]} actualizado con éxito", "data": post_updated}
