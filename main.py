@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional
+from typing import List, Optional, Union
 
 app = FastAPI(title="Mini Blog")
 
@@ -28,7 +28,7 @@ FORBIDDEN_WORDS = ["spam", "banned", "badword", "xxx", "gambling"]
 
 class PostBase(BaseModel):
     title: str
-    content: Optional[str] = ""
+    content: str
 
 
 class PostCreate(BaseModel):
@@ -81,6 +81,15 @@ class PostUpdate(BaseModel):
         return value
 
 
+class PostPublic(PostBase):
+    id: int
+
+
+class PostSummary(BaseModel):
+    id: int
+    title: str
+
+
 @app.get("/")
 def home():
     return {
@@ -88,7 +97,10 @@ def home():
     }
 
 
-@app.get("/posts")
+@app.get(
+    "/posts",
+    response_model=List[PostPublic]
+)
 def list_posts(query: str | None = Query(default=None, description="Texto para buscar por el título")):
     if query:
         results = [post for post in BLOG_POSTS if query.lower()
@@ -96,41 +108,62 @@ def list_posts(query: str | None = Query(default=None, description="Texto para b
         # for post in BLOG_POSTS:
         #     if query.lower() in post["title"].lower():
         #         results.append(post)
-        return {"data": results, "query": query}
+        return results
 
-    return {"data": BLOG_POSTS}
+    return BLOG_POSTS
 
 
-@app.get("/posts/{post_id}")
-def get_post(post_id: int, include_content: bool = Query(default=True, description="Incluir o no el contenido del blog")):
+@app.get(
+    "/posts/{post_id}",
+    response_model=Union[PostPublic, PostSummary],
+    response_description="Post encontrado"
+)
+def get_post(
+    post_id: int,
+    include_content: bool = Query(
+        default=True, description="Incluir o no el contenido del blog"
+    )
+):
     for post in BLOG_POSTS:
         if post["id"] == post_id:
             if include_content:
-                return {"data": post}
+                return post
             else:
-                return {"data": {"id": post["id"], "title": post["title"]}}
+                return {
+                    "id": post["id"],
+                    "title": post["title"]
+                }
 
-    return {"error": "Post no encontrado"}
+    raise HTTPException(
+        status_code=404, detail=f"Post {post_id} no encontrado")
 
 
-@app.post("/posts")
+@app.post(
+    "/posts",
+    response_model=PostPublic,
+    response_description="Post creado con éxito"
+)
 def create_post(post: PostCreate):
     new_id = max(post["id"] for post in BLOG_POSTS) + 1 if BLOG_POSTS else 1
 
     new_post = {"id": new_id, **post.model_dump()}
 
     BLOG_POSTS.append(new_post)
-    return {"message": "Post creado", "data": new_post}
+    return new_post
 
 
-@app.put("/posts/{post_id}")
+@app.put(
+    "/posts/{post_id}",
+    response_model=PostPublic,
+    response_description="Post actualizado con éxito"
+)
 def update_post(post_id: int, data: PostUpdate):
     for post in BLOG_POSTS:
         if post["id"] == post_id:
             post_updated = {**post, **data.model_dump(exclude_unset=True)}
             index = BLOG_POSTS.index(post)
             BLOG_POSTS[index] = post_updated
-            return {"message": f"Post {post["id"]} actualizado con éxito", "data": post_updated}
+            return post_updated
 
     raise HTTPException(
         status_code=404, detail=f"Post {post_id} no encontrado")
