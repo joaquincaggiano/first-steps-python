@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 app = FastAPI(title="Mini Blog")
@@ -29,13 +29,36 @@ class PostBase(BaseModel):
     content: Optional[str] = ""
 
 
-class PostCreate(PostBase):
-    pass
+class PostCreate(BaseModel):
+    title: str = Field(
+        ...,  # Hace que sea obligatorio
+        min_length=3,
+        max_length=100,
+        description="Título del post",
+        examples=["Mi primer post con FastAPI"]
+    )
+    content: Optional[str] = Field(
+        default="",
+        min_length=10,
+        description="Contenido del post",
+        examples=["Este es el contenido de mi primer post"]
+    )
 
 
 class PostUpdate(BaseModel):
-    title: Optional[str] = None
-    content: Optional[str] = None
+    title: Optional[str] = Field(
+        default=None,
+        min_length=3,
+        max_length=100,
+        description="Título del post",
+        examples=["Mi primer post con FastAPI"]
+    )
+    content: Optional[str] = Field(
+        default=None,
+        min_length=10,
+        description="Contenido del post",
+        examples=["Este es el contenido de mi primer post"]
+    )
 
 
 @app.get("/")
