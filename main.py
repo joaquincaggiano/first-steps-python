@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 
 app = FastAPI(title="Mini Blog")
@@ -23,6 +23,8 @@ BLOG_POSTS = [
     }
 ]
 
+FORBIDDEN_WORDS = ["spam", "banned", "badword", "xxx", "gambling"]
+
 
 class PostBase(BaseModel):
     title: str
@@ -44,6 +46,15 @@ class PostCreate(BaseModel):
         examples=["Este es el contenido de mi primer post"]
     )
 
+    @field_validator("title")  # Evalua el campo title
+    @classmethod  # Para que se pueda usar en la clase
+    def forbidden_title(cls, value: str) -> str:
+        for word in FORBIDDEN_WORDS:
+            if word in value.lower():
+                raise ValueError(
+                    f"El título no puede contener la palabra {word}")
+        return value
+
 
 class PostUpdate(BaseModel):
     title: Optional[str] = Field(
@@ -59,6 +70,15 @@ class PostUpdate(BaseModel):
         description="Contenido del post",
         examples=["Este es el contenido de mi primer post"]
     )
+
+    @field_validator("title")  # Evalua el campo title
+    @classmethod  # Para que se pueda usar en la clase
+    def forbidden_title(cls, value: str) -> str:
+        for word in FORBIDDEN_WORDS:
+            if word in value.lower():
+                raise ValueError(
+                    f"El título no puede contener la palabra {word}")
+        return value
 
 
 @app.get("/")
