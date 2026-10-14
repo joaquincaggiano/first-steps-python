@@ -1,5 +1,6 @@
-from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
+from typing import Optional
 
 app = FastAPI(title="Mini Blog")
 
@@ -25,7 +26,7 @@ BLOG_POSTS = [
 
 class PostBase(BaseModel):
     title: str
-    content: str
+    content: Optional[str] = ""
 
 
 class PostCreate(PostBase):
@@ -33,8 +34,8 @@ class PostCreate(PostBase):
 
 
 class PostUpdate(BaseModel):
-    title: str
-    content: str
+    title: Optional[str] = None
+    content: Optional[str] = None
 
 
 @app.get("/")
