@@ -52,7 +52,7 @@ class Author(BaseModel):
 class PostBase(BaseModel):
     title: str
     content: str
-    tags: Optional[List[Tag]] = []
+    tags: Optional[List[Tag]] = Field(default_factory=list)
     author: Optional[Author] = None
 
 
@@ -70,7 +70,7 @@ class PostCreate(BaseModel):
         description="Contenido del post",
         examples=["Este es el contenido de mi primer post"]
     )
-    tags: List[Tag] = []
+    tags: List[Tag] = Field(default_factory=list)
     author: Optional[Author] = None
 
     @field_validator("title")  # Evalua el campo title
