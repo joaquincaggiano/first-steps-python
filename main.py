@@ -129,7 +129,14 @@ def home():
     response_model=List[PostPublic],
     response_model_exclude_none=True
 )
-def list_posts(query: str | None = Query(default=None, description="Texto para buscar por el título")):
+def list_posts(query: Optional[str] = Query(
+    default=None,
+    description="Texto para buscar por el título",
+    alias="search",  # A nivel público el usuario ve search, a nivel de código será query
+    min_length=3,
+    max_length=50,
+    pattern=r"^[\w\sáéíóúÁÉÍÓÚüÜ-]+$"
+)):
     if query:
         results = [post for post in BLOG_POSTS if query.lower()
                    in post["title"].lower()]
