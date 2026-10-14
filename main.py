@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import List, Optional, Union
 
 app = FastAPI(title="Mini Blog")
@@ -26,9 +26,34 @@ BLOG_POSTS = [
 FORBIDDEN_WORDS = ["spam", "banned", "badword", "xxx", "gambling"]
 
 
+class Tag(BaseModel):
+    name: str = Field(
+        ...,
+        min_length=2,
+        max_length=30,
+        description="Nombre de la etiqueta"
+    )
+
+
+class Author(BaseModel):
+    name: str = Field(
+        ...,
+        min_length=2,
+        max_length=30,
+        description="Nombre del autor"
+    )
+    email: EmailStr = Field(
+        ...,
+        description="Email del usuario",
+        examples=["joaquincaggiano@gmail.com"]
+    )
+
+
 class PostBase(BaseModel):
     title: str
     content: str
+    tags: Optional[List[Tag]] = []
+    author: Optional[Author] = None
 
 
 class PostCreate(BaseModel):
@@ -45,6 +70,8 @@ class PostCreate(BaseModel):
         description="Contenido del post",
         examples=["Este es el contenido de mi primer post"]
     )
+    tags: List[Tag] = []
+    author: Optional[Author] = None
 
     @field_validator("title")  # Evalua el campo title
     @classmethod  # Para que se pueda usar en la clase
@@ -99,7 +126,8 @@ def home():
 
 @app.get(
     "/posts",
-    response_model=List[PostPublic]
+    response_model=List[PostPublic],
+    response_model_exclude_none=True
 )
 def list_posts(query: str | None = Query(default=None, description="Texto para buscar por el título")):
     if query:
@@ -116,7 +144,8 @@ def list_posts(query: str | None = Query(default=None, description="Texto para b
 @app.get(
     "/posts/{post_id}",
     response_model=Union[PostPublic, PostSummary],
-    response_description="Post encontrado"
+    response_description="Post encontrado",
+    response_model_exclude_none=True
 )
 def get_post(
     post_id: int,
@@ -146,7 +175,12 @@ def get_post(
 def create_post(post: PostCreate):
     new_id = max(post["id"] for post in BLOG_POSTS) + 1 if BLOG_POSTS else 1
 
-    new_post = {"id": new_id, **post.model_dump()}
+    new_post = {
+        "id": new_id,
+        **post.model_dump(),
+        "tags": [tag.model_dump() for tag in post.tags],
+        "author": post.author.model_dump() if post.author else None
+    }
 
     BLOG_POSTS.append(new_post)
     return new_post
