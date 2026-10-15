@@ -10,52 +10,62 @@ BLOG_POSTS = [
     {
         "id": 1,
         "title": "Introducción a Python",
-        "content": "Aprende los conceptos básicos de Python."
+        "content": "Aprende los conceptos básicos de Python.",
+        "tags": [{"name": "python"}, {"name": "beginner"}]
     },
     {
         "id": 2,
         "title": "¿Qué es una API?",
-        "content": "Las APIs permiten la comunicación entre aplicaciones."
+        "content": "Las APIs permiten la comunicación entre aplicaciones.",
+        "tags": [{"name": "api"}, {"name": "beginner"}]
     },
     {
         "id": 3,
         "title": "Primeros pasos con JavaScript",
-        "content": "Cómo comenzar a programar con JavaScript."
+        "content": "Cómo comenzar a programar con JavaScript.",
+        "tags": [{"name": "javascript"}, {"name": "beginner"}]
     },
     {
         "id": 4,
         "title": "¿Qué es Git y para qué sirve?",
-        "content": "Git es una herramienta para control de versiones."
+        "content": "Git es una herramienta para control de versiones.",
+        "tags": [{"name": "git"}, {"name": "tools"}]
     },
     {
         "id": 5,
         "title": "Ventajas de usar frameworks",
-        "content": "Un framework acelera el desarrollo y facilita el mantenimiento."
+        "content": "Un framework acelera el desarrollo y facilita el mantenimiento.",
+        "tags": [{"name": "frameworks"}, {"name": "best-practices"}]
     },
     {
         "id": 6,
         "title": "Bases de datos relacionales",
-        "content": "Descubre cómo funcionan las bases de datos SQL."
+        "content": "Descubre cómo funcionan las bases de datos SQL.",
+        "tags": [{"name": "sql"}, {"name": "databases"}]
     },
     {
         "id": 7,
         "title": "¿Por qué aprender TypeScript?",
-        "content": "TypeScript ayuda a evitar errores en JavaScript."
+        "content": "TypeScript ayuda a evitar errores en JavaScript.",
+        "tags": [{"name": "typescript"}, {"name": "javascript"}]
     },
     {
         "id": 8,
         "title": "Automatización con scripts",
-        "content": "Los scripts pueden automatizar tareas repetitivas."
+        "content": "Los scripts pueden automatizar tareas repetitivas.",
+        "tags": [{"name": "python"}, {"name": "automation"}]
     },
     {
         "id": 9,
         "title": "Introducción a FastAPI",
-        "content": "FastAPI es un framework moderno para APIs en Python."
+        "content": "FastAPI es un framework moderno para APIs en Python.",
+        "tags": [{"name": "python"}, {"name": "fastapi"}, {"name": "api"}]
     },
     {
         "id": 10,
         "title": "Diferencias entre frontend y backend",
-        "content": "Conoce qué distingue al desarrollo frontend del backend."
+        "content": "Conoce qué distingue al desarrollo frontend del backend.",
+        "tags": [{"name": "frontend"}, {"name": "backend"}]
     }
 ]
 
@@ -243,6 +253,20 @@ def list_posts(
         search=query,
         items=items
     )
+
+
+@app.get("/posts/by-tags", response_model=List[PostPublic])
+def get_posts_by_tags(tags: List[str] = Query(
+    ...,
+    min_length=1,
+    description="Una o más etiquetas. Ej: ?tags=python&tags=fastapi"
+)):
+    tags_lower = [tag.lower() for tag in tags]
+
+    return [
+        post for post in BLOG_POSTS
+        if any(tag["name"].lower() in tags_lower for tag in post.get("tags", []))
+    ]
 
 
 @app.get(
