@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Query, Path
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from typing import List, Optional, Union
+from typing import List, Literal, Optional, Union
 
 app = FastAPI(title="Mini Blog")
 
@@ -8,18 +8,53 @@ app = FastAPI(title="Mini Blog")
 BLOG_POSTS = [
     {
         "id": 1,
-        "title": "Mi primer post",
-        "content": "Este es el contenido de mi primer post"
+        "title": "Introducción a Python",
+        "content": "Aprende los conceptos básicos de Python."
     },
     {
         "id": 2,
-        "title": "Mi segundo post",
-        "content": "Este es el contenido de mi segundo post"
+        "title": "¿Qué es una API?",
+        "content": "Las APIs permiten la comunicación entre aplicaciones."
     },
     {
         "id": 3,
-        "title": "Mi tercer post",
-        "content": "Este es el contenido de mi tercer post"
+        "title": "Primeros pasos con JavaScript",
+        "content": "Cómo comenzar a programar con JavaScript."
+    },
+    {
+        "id": 4,
+        "title": "¿Qué es Git y para qué sirve?",
+        "content": "Git es una herramienta para control de versiones."
+    },
+    {
+        "id": 5,
+        "title": "Ventajas de usar frameworks",
+        "content": "Un framework acelera el desarrollo y facilita el mantenimiento."
+    },
+    {
+        "id": 6,
+        "title": "Bases de datos relacionales",
+        "content": "Descubre cómo funcionan las bases de datos SQL."
+    },
+    {
+        "id": 7,
+        "title": "¿Por qué aprender TypeScript?",
+        "content": "TypeScript ayuda a evitar errores en JavaScript."
+    },
+    {
+        "id": 8,
+        "title": "Automatización con scripts",
+        "content": "Los scripts pueden automatizar tareas repetitivas."
+    },
+    {
+        "id": 9,
+        "title": "Introducción a FastAPI",
+        "content": "FastAPI es un framework moderno para APIs en Python."
+    },
+    {
+        "id": 10,
+        "title": "Diferencias entre frontend y backend",
+        "content": "Conoce qué distingue al desarrollo frontend del backend."
     }
 ]
 
@@ -129,23 +164,45 @@ def home():
     response_model=List[PostPublic],
     response_model_exclude_none=True
 )
-def list_posts(query: Optional[str] = Query(
-    default=None,
-    description="Texto para buscar por el título",
-    alias="search",  # A nivel público el usuario ve search, a nivel de código será query
-    min_length=3,
-    max_length=50,
-    pattern=r"^[\w\sáéíóúÁÉÍÓÚüÜ-]+$"
-)):
-    if query:
-        results = [post for post in BLOG_POSTS if query.lower()
-                   in post["title"].lower()]
-        # for post in BLOG_POSTS:
-        #     if query.lower() in post["title"].lower():
-        #         results.append(post)
-        return results
+def list_posts(
+    query: Optional[str] = Query(
+        default=None,
+        description="Texto para buscar por el título",
+        alias="search",  # A nivel público el usuario ve search, a nivel de código será query
+        min_length=3,
+        max_length=50,
+        pattern=r"^[\w\sáéíóúÁÉÍÓÚüÜ-]+$"
+    ),
+    limit: int = Query(
+        default=10,
+        ge=1,
+        le=50,
+        description="Número de resultados (1-50)"
+    ),
+    offset: int = Query(
+        default=0,
+        ge=0,
+        description="Número de resultados a saltar"
+    ),
+    order_by: Literal["id", "title"] = Query(
+        default="id",
+        description="Ordenar por id o título"
+    ),
+    direction: Literal["asc", "desc"] = Query(
+        default="asc",
+        description="Dirección ascendente o descendente"
+    )
+):
+    results = BLOG_POSTS
 
-    return BLOG_POSTS
+    if query:
+        results = [post for post in results if query.lower()
+                   in post["title"].lower()]
+
+    results = sorted(
+        results, key=lambda post: post[order_by], reverse=(direction == "desc"))
+
+    return results[offset:offset+limit]
 
 
 @app.get(
