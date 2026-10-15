@@ -152,16 +152,16 @@ class PostSummary(BaseModel):
     title: str
 
 
-@app.get("/")
-def home():
-    return {
-        "message": "Bienvenidos a mi Mini Blog"
-    }
+class PaginatedPost(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    items: List[PostPublic]
 
 
 @app.get(
     "/posts",
-    response_model=List[PostPublic],
+    response_model=PaginatedPost,
     response_model_exclude_none=True
 )
 def list_posts(
@@ -202,7 +202,14 @@ def list_posts(
     results = sorted(
         results, key=lambda post: post[order_by], reverse=(direction == "desc"))
 
-    return results[offset:offset+limit]
+    total = len(results)
+    # Convierte los posts a PostPublic
+    items = [
+        PostPublic.model_validate(post)
+        for post in results[offset:offset + limit]
+    ]
+
+    return PaginatedPost(total=total, limit=limit, offset=offset, items=items)
 
 
 @app.get(
