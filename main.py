@@ -1,7 +1,30 @@
+import os
 from math import ceil
 from fastapi import FastAPI, HTTPException, Query, Path
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import List, Literal, Optional, Union
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./blog.db")
+
+engine_kwargs = {}
+if DATABASE_URL.startswith("sqlite"):
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(
+    DATABASE_URL,
+    echo=True,
+    future=True,
+    **engine_kwargs
+)
+
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False,  # Deprecado en SQLAlchemy 2.0
+    class_=Session
+)
 
 app = FastAPI(title="Mini Blog")
 
