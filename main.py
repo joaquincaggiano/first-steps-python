@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, Query, Path
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import List, Literal, Optional, Union
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session, DeclarativeBase
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./blog.db")
 
@@ -25,6 +25,19 @@ SessionLocal = sessionmaker(
     autocommit=False,  # Deprecado en SQLAlchemy 2.0
     class_=Session
 )
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 
 app = FastAPI(title="Mini Blog")
 
