@@ -210,6 +210,7 @@ class PostBase(BaseModel):
     tags: Optional[List[Tag]] = Field(default_factory=list)
     author: Optional[Author] = None
 
+
 class PostCreate(BaseModel):
     title: str = Field(
         ...,  # Hace que sea obligatorio
@@ -458,7 +459,35 @@ def get_post(
     status_code=status.HTTP_201_CREATED
 )
 def create_post(post: PostCreate, db: Session = Depends(get_db)):
-    new_post = PostORM(title=post.title, content=post.content)
+    author_obj = None
+
+    if post.author:
+        author_obj = db.execute(
+            select(AuthorORM).where(AuthorORM.email == post.author.email)
+        ).scalar_one_or_none()
+
+        if not author_obj:
+            author_obj = AuthorORM(name=post.author.name,
+                                   email=post.author.email)
+            db.add(author_obj)
+            db.flush()  # Guarda el objeto en la base de datos pero no lo commit
+
+    new_post = PostORM(
+        title=post.title,
+        content=post.content,
+        author=author_obj
+    )
+
+    for tag in post.tags:
+        tag_obj = db.execute(
+            select(TagORM).where(TagORM.name.ilike(tag.name))
+        ).scalar_one_or_none()
+        if not tag_obj:
+            tag_obj = TagORM(name=tag.name)
+            db.add(tag_obj)
+            db.flush()
+        new_post.tags.append(tag_obj)
+
     try:
         db.add(new_post)
         db.commit()
