@@ -4,7 +4,7 @@ from math import ceil
 from fastapi import Depends, FastAPI, HTTPException, Query, Path, status
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from typing import List, Literal, Optional, Union
-from sqlalchemy import DateTime, Integer, String, Text, create_engine
+from sqlalchemy import DateTime, Integer, String, Text, create_engine, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, sessionmaker, Session, DeclarativeBase
 
@@ -261,35 +261,57 @@ def list_posts(
     direction: Literal["asc", "desc"] = Query(
         default="asc",
         description="Dirección ascendente o descendente"
-    )
+    ),
+    db: Session = Depends(get_db)
 ):
-    results = BLOG_POSTS
+    # results = BLOG_POSTS
+    results = select(PostORM)
 
+    # if query:
+    #     results = [post for post in results if query.lower()
+    #                in post["title"].lower()]
     if query:
-        results = [post for post in results if query.lower()
-                   in post["title"].lower()]
+        results = results.where(PostORM.title.ilike(f"%{query}%"))
 
-    total = len(results)
+    # total = len(results)
+    total = db.scalar(select(func.count()).select_from(
+        results.subquery())) or 0
     total_pages = ceil(total / per_page) if total > 0 else 0
 
-    if total_pages == 0:
-        current_page = 1
+    # if total_pages == 0:
+    #     current_page = 1
+    # else:
+    #     current_page = min(page, total_pages)
+    current_page = 1 if total_pages == 0 else min(page, total_pages)
+
+    if order_by == "id":
+        order_col = PostORM.id
     else:
-        current_page = min(page, total_pages)
+        order_col = func.lower(PostORM.title)
 
-    results = sorted(
-        results, key=lambda post: post[order_by], reverse=(direction == "desc"))
+    # results = sorted(
+    #     results, key=lambda post: post[order_by], reverse=(direction == "desc"))
+    results = results.order_by(
+        order_col.asc() if direction == "asc" else order_col.desc())
 
+    # if total_pages == 0:
+    #     items = []
+    # else:
+    #     start = (current_page - 1) * per_page
+    #     end = start + per_page
+    #     # Convierte los posts a PostPublic
+    #     items = [
+    #         PostPublic.model_validate(post)
+    #         for post in results[start:end]
+    #     ]
     if total_pages == 0:
-        items = []
+        items: List[PostPublic] = []
     else:
         start = (current_page - 1) * per_page
-        end = start + per_page
-        # Convierte los posts a PostPublic
-        items = [
-            PostPublic.model_validate(post)
-            for post in results[start:end]
-        ]
+        rows = db.execute(
+            results.limit(per_page).offset(start)
+        ).scalars().all()
+        items = [PostPublic.model_validate(post) for post in rows]
 
     has_prev = current_page > 1
     has_next = current_page < total_pages if total_pages > 0 else False
