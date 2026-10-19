@@ -65,11 +65,11 @@ class TagORM(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
-    
+
     posts: Mapped[List["PostORM"]] = relationship(
-      secondary=post_tags,
-      back_populates="tags",
-      lazy="selectin"
+        secondary=post_tags,
+        back_populates="tags",
+        lazy="selectin"
     )
 
 
@@ -184,6 +184,9 @@ class Tag(BaseModel):
         description="Nombre de la etiqueta"
     )
 
+    # Para que pueda validar objetos de tipo TagORM
+    model_config = ConfigDict(from_attributes=True)
+
 
 class Author(BaseModel):
     name: str = Field(
@@ -198,13 +201,14 @@ class Author(BaseModel):
         examples=["joaquincaggiano@gmail.com"]
     )
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class PostBase(BaseModel):
     title: str
     content: str
     tags: Optional[List[Tag]] = Field(default_factory=list)
     author: Optional[Author] = None
-
 
 class PostCreate(BaseModel):
     title: str = Field(
