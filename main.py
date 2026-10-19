@@ -462,12 +462,27 @@ def update_post(post_id: int, data: PostUpdate, db: Session = Depends(get_db)):
     #     status_code=404, detail=f"Post {post_id} no encontrado")
 
 
-@app.delete("/posts/{post_id}", status_code=204)
-def delete_post(post_id: int):
-    for i, post in enumerate(BLOG_POSTS):
-        if post["id"] == post_id:
-            BLOG_POSTS.pop(i)
-            return
+@app.delete("/posts/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_post(post_id: int, db: Session = Depends(get_db)):
+    post = db.get(PostORM, post_id)
 
-    raise HTTPException(
-        status_code=404, detail=f"Post {post_id} no encontrado")
+    if not post:
+        raise HTTPException(
+            status_code=404, detail=f"Post {post_id} no encontrado")
+
+    try:
+        db.delete(post)
+        db.commit()
+        return
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail="Error al eliminar el post")
+
+        # for i, post in enumerate(BLOG_POSTS):
+        #     if post["id"] == post_id:
+        #         BLOG_POSTS.pop(i)
+        #         return
+
+        # raise HTTPException(
+        #     status_code=404, detail=f"Post {post_id} no encontrado")
