@@ -4,9 +4,9 @@ from math import ceil
 from fastapi import Depends, FastAPI, HTTPException, Query, Path, status
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from typing import List, Literal, Optional, Union
-from sqlalchemy import DateTime, Integer, String, Text, UniqueConstraint, create_engine, func, select
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, Text, UniqueConstraint, create_engine, func, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Mapped, mapped_column, sessionmaker, Session, DeclarativeBase
+from sqlalchemy.orm import Mapped, mapped_column, relationship, sessionmaker, Session, DeclarativeBase
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./blog.db")
 
@@ -33,6 +33,46 @@ class Base(DeclarativeBase):
     pass
 
 
+post_tags = Table(
+    "post_tags",
+    Base.metadata,
+    Column(
+        "post_id",
+        ForeignKey("posts.id", ondelete="CASCADE"),
+        primary_key=True
+    ),
+    Column(
+        "tag_id",
+        ForeignKey("tags.id", ondelete="CASCADE"),
+        primary_key=True
+    )
+)
+
+
+class AuthorORM(Base):
+    __tablename__ = "authors"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    email: Mapped[EmailStr] = mapped_column(
+        String(100), unique=True, index=True)
+
+    posts: Mapped[List[PostORM]] = relationship(back_populates="author")
+
+
+class TagORM(Base):
+    __tablename__ = "tags"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    
+    posts: Mapped[List["PostORM"]] = relationship(
+      secondary=post_tags,
+      back_populates="tags",
+      lazy="selectin"
+    )
+
+
 class PostORM(Base):
     __tablename__ = "posts"
     __table_args__ = (UniqueConstraint("title", name="unique_post_title"),)
@@ -43,6 +83,16 @@ class PostORM(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
+    )
+
+    author_id: Mapped[Optional[int]] = mapped_column(ForeignKey("authors.id"))
+    author: Mapped[Optional[AuthorORM]] = relationship(back_populates="posts")
+
+    tags: Mapped[List["TagORM"]] = relationship(
+        secondary=post_tags,
+        back_populates="posts",
+        lazy="selectin",
+        passive_deletes=True
     )
 
 
