@@ -1,10 +1,11 @@
 from datetime import datetime, timezone
 import os
 from math import ceil
-from fastapi import FastAPI, HTTPException, Query, Path
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from fastapi import Depends, FastAPI, HTTPException, Query, Path, status
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from typing import List, Literal, Optional, Union
 from sqlalchemy import DateTime, Integer, String, Text, create_engine
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, sessionmaker, Session, DeclarativeBase
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./blog.db")
@@ -42,7 +43,9 @@ class PostORM(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
-Base.metadata.create_all(bind=engine) # Dev
+
+Base.metadata.create_all(bind=engine)  # Dev
+
 
 def get_db():
     db = SessionLocal()
@@ -205,6 +208,7 @@ class PostUpdate(BaseModel):
 
 class PostPublic(PostBase):
     id: int
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PostSummary(BaseModel):
@@ -353,20 +357,30 @@ def get_post(
 @app.post(
     "/posts",
     response_model=PostPublic,
-    response_description="Post creado con éxito"
+    response_description="Post creado con éxito",
+    status_code=status.HTTP_201_CREATED
 )
-def create_post(post: PostCreate):
-    new_id = max(post["id"] for post in BLOG_POSTS) + 1 if BLOG_POSTS else 1
+def create_post(post: PostCreate, db: Session = Depends(get_db)):
+    new_post = PostORM(title=post.title, content=post.content)
+    try:
+        db.add(new_post)
+        db.commit()
+        db.refresh(new_post)
+        return new_post
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error al crear el post")
+    # new_id = max(post["id"] for post in BLOG_POSTS) + 1 if BLOG_POSTS else 1
 
-    new_post = {
-        "id": new_id,
-        **post.model_dump(),
-        "tags": [tag.model_dump() for tag in post.tags],
-        "author": post.author.model_dump() if post.author else None
-    }
+    # new_post = {
+    #     "id": new_id,
+    #     **post.model_dump(),
+    #     "tags": [tag.model_dump() for tag in post.tags],
+    #     "author": post.author.model_dump() if post.author else None
+    # }
 
-    BLOG_POSTS.append(new_post)
-    return new_post
+    # BLOG_POSTS.append(new_post)
+    # return new_post
 
 
 @app.put(
