@@ -208,12 +208,16 @@ class PostUpdate(BaseModel):
 
 class PostPublic(PostBase):
     id: int
+    # Para que pueda validar objetos de tipo PostORM
     model_config = ConfigDict(from_attributes=True)
 
 
 class PostSummary(BaseModel):
     id: int
     title: str
+
+    # Para que pueda validar objetos de tipo PostORM
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PaginatedPost(BaseModel):
@@ -360,20 +364,35 @@ def get_post(
     ),
     include_content: bool = Query(
         default=True, description="Incluir o no el contenido del blog"
-    )
+    ),
+    db: Session = Depends(get_db)
 ):
-    for post in BLOG_POSTS:
-        if post["id"] == post_id:
-            if include_content:
-                return post
-            else:
-                return {
-                    "id": post["id"],
-                    "title": post["title"]
-                }
+    # Si post_id no fuera un primary key, podemos buscarlo así:
+    # post__found = select(PostORM).where(PostORM.id == post_id).first()
+    # post = db.execute(post_found).scalar_one_or_none()
+    post = db.get(PostORM, post_id)
 
-    raise HTTPException(
-        status_code=404, detail=f"Post {post_id} no encontrado")
+    if not post:
+        raise HTTPException(
+            status_code=404, detail=f"Post {post_id} no encontrado")
+
+    if include_content:
+        return PostPublic.model_validate(post, from_attributes=True)
+
+    return PostSummary.model_validate(post, from_attributes=True)
+
+    # for post in BLOG_POSTS:
+    #     if post["id"] == post_id:
+    #         if include_content:
+    #             return post
+    #         else:
+    #             return {
+    #                 "id": post["id"],
+    #                 "title": post["title"]
+    #             }
+
+    # raise HTTPException(
+    #     status_code=404, detail=f"Post {post_id} no encontrado")
 
 
 @app.post(
