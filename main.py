@@ -429,16 +429,37 @@ def create_post(post: PostCreate, db: Session = Depends(get_db)):
     response_model=PostPublic,
     response_description="Post actualizado con éxito"
 )
-def update_post(post_id: int, data: PostUpdate):
-    for post in BLOG_POSTS:
-        if post["id"] == post_id:
-            post_updated = {**post, **data.model_dump(exclude_unset=True)}
-            index = BLOG_POSTS.index(post)
-            BLOG_POSTS[index] = post_updated
-            return post_updated
+def update_post(post_id: int, data: PostUpdate, db: Session = Depends(get_db)):
+    post = db.get(PostORM, post_id)
 
-    raise HTTPException(
-        status_code=404, detail=f"Post {post_id} no encontrado")
+    if not post:
+        raise HTTPException(
+            status_code=404, detail=f"Post {post_id} no encontrado")
+
+    # exclude_unset evita que en la respuesta aparezca null en campos que no se envian
+    updates = data.model_dump(exclude_unset=True)
+
+    for key, value in updates.items():
+        setattr(post, key, value)
+
+    try:
+        db.commit()
+        db.refresh(post)
+        return post
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail="Error al actualizar el post")
+
+    # for post in BLOG_POSTS:
+    #     if post["id"] == post_id:
+    #         post_updated = {**post, **data.model_dump(exclude_unset=True)}
+    #         index = BLOG_POSTS.index(post)
+    #         BLOG_POSTS[index] = post_updated
+    #         return post_updated
+
+    # raise HTTPException(
+    #     status_code=404, detail=f"Post {post_id} no encontrado")
 
 
 @app.delete("/posts/{post_id}", status_code=204)
