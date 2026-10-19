@@ -4,8 +4,8 @@ from math import ceil
 from fastapi import Depends, FastAPI, HTTPException, Query, Path, status
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from typing import List, Literal, Optional, Union
-from sqlalchemy import DateTime, Integer, String, Text, create_engine, func, select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import DateTime, Integer, String, Text, UniqueConstraint, create_engine, func, select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, sessionmaker, Session, DeclarativeBase
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./blog.db")
@@ -35,6 +35,8 @@ class Base(DeclarativeBase):
 
 class PostORM(Base):
     __tablename__ = "posts"
+    __table_args__ = (UniqueConstraint("title", name="unique_post_title"),)
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     title: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
@@ -408,6 +410,9 @@ def create_post(post: PostCreate, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(new_post)
         return new_post
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="El título ya existe")
     except SQLAlchemyError:
         db.rollback()
         raise HTTPException(status_code=500, detail="Error al crear el post")
