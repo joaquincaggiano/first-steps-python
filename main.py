@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from typing import List, Literal, Optional, Union
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, Text, UniqueConstraint, create_engine, func, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Mapped, mapped_column, relationship, sessionmaker, Session, DeclarativeBase
+from sqlalchemy.orm import Mapped, joinedload, mapped_column, relationship, selectinload, sessionmaker, Session, DeclarativeBase
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./blog.db")
 
@@ -108,70 +108,6 @@ def get_db():
 
 
 app = FastAPI(title="Mini Blog")
-
-
-BLOG_POSTS = [
-    {
-        "id": 1,
-        "title": "Introducción a Python",
-        "content": "Aprende los conceptos básicos de Python.",
-        "tags": [{"name": "python"}, {"name": "beginner"}]
-    },
-    {
-        "id": 2,
-        "title": "¿Qué es una API?",
-        "content": "Las APIs permiten la comunicación entre aplicaciones.",
-        "tags": [{"name": "api"}, {"name": "beginner"}]
-    },
-    {
-        "id": 3,
-        "title": "Primeros pasos con JavaScript",
-        "content": "Cómo comenzar a programar con JavaScript.",
-        "tags": [{"name": "javascript"}, {"name": "beginner"}]
-    },
-    {
-        "id": 4,
-        "title": "¿Qué es Git y para qué sirve?",
-        "content": "Git es una herramienta para control de versiones.",
-        "tags": [{"name": "git"}, {"name": "tools"}]
-    },
-    {
-        "id": 5,
-        "title": "Ventajas de usar frameworks",
-        "content": "Un framework acelera el desarrollo y facilita el mantenimiento.",
-        "tags": [{"name": "frameworks"}, {"name": "best-practices"}]
-    },
-    {
-        "id": 6,
-        "title": "Bases de datos relacionales",
-        "content": "Descubre cómo funcionan las bases de datos SQL.",
-        "tags": [{"name": "sql"}, {"name": "databases"}]
-    },
-    {
-        "id": 7,
-        "title": "¿Por qué aprender TypeScript?",
-        "content": "TypeScript ayuda a evitar errores en JavaScript.",
-        "tags": [{"name": "typescript"}, {"name": "javascript"}]
-    },
-    {
-        "id": 8,
-        "title": "Automatización con scripts",
-        "content": "Los scripts pueden automatizar tareas repetitivas.",
-        "tags": [{"name": "python"}, {"name": "automation"}]
-    },
-    {
-        "id": 9,
-        "title": "Introducción a FastAPI",
-        "content": "FastAPI es un framework moderno para APIs en Python.",
-        "tags": [{"name": "python"}, {"name": "fastapi"}, {"name": "api"}]
-    },
-    {
-        "id": 10,
-        "title": "Diferencias entre frontend y backend",
-        "content": "Conoce qué distingue al desarrollo frontend del backend.",
-        "tags": [{"name": "frontend"}, {"name": "backend"}]
-    }
-]
 
 FORBIDDEN_WORDS = ["spam", "banned", "badword", "xxx", "gambling"]
 
@@ -392,17 +328,35 @@ def list_posts(
 
 
 @app.get("/posts/by-tags", response_model=List[PostPublic])
-def get_posts_by_tags(tags: List[str] = Query(
-    ...,
-    min_length=1,
-    description="Una o más etiquetas. Ej: ?tags=python&tags=fastapi"
-)):
-    tags_lower = [tag.lower() for tag in tags]
+def get_posts_by_tags(
+    tags: List[str] = Query(
+        ...,
+        min_length=1,
+        description="Una o más etiquetas. Ej: ?tags=python&tags=fastapi"
+    ),
+    db: Session = Depends(get_db)
+):
+    normalized_tags = [tag.strip().lower() for tag in tags if tag.strip()]
 
-    return [
-        post for post in BLOG_POSTS
-        if any(tag["name"].lower() in tags_lower for tag in post.get("tags", []))
-    ]
+    if not normalized_tags:
+        return []
+
+    posts = db.execute(
+        select(PostORM).options(
+            selectinload(PostORM.tags),
+            joinedload(PostORM.author),
+        ).where(PostORM.tags.any(func.lower(TagORM.name).in_(normalized_tags)))
+        .order_by(PostORM.id.asc())
+    ).scalars().all()
+
+    return posts
+
+    # tags_lower = [tag.lower() for tag in tags]
+
+    # return [
+    #     post for post in BLOG_POSTS
+    #     if any(tag["name"].lower() in tags_lower for tag in post.get("tags", []))
+    # ]
 
 
 @app.get(
