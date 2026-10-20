@@ -7,7 +7,10 @@ from typing import List, Literal, Optional, Union
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, Text, UniqueConstraint, create_engine, func, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Mapped, joinedload, mapped_column, relationship, selectinload, sessionmaker, Session, DeclarativeBase
+from dotenv import load_dotenv
 
+
+load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./blog.db")
 
 engine_kwargs = {}
