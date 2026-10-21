@@ -125,7 +125,7 @@ def get_post(
 
 
 @router.post(
-    "/posts",
+    "",
     response_model=PostPublic,
     response_description="Post creado con éxito",
     status_code=status.HTTP_201_CREATED
