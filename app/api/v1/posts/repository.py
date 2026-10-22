@@ -3,7 +3,7 @@ from typing import List, Literal, Optional, Sequence, Tuple
 from pydantic import EmailStr
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
-from app.api.v1.posts.schemas import PostCreate
+from app.api.v1.posts.schemas import Author, PostCreate
 from app.models import PostORM, AuthorORM, TagORM
 
 
@@ -95,10 +95,8 @@ class PostRepository:
 
         return tag_obj
 
-    def create_post(self, data: PostCreate) -> PostORM:
-        author_obj = self.ensure_author(
-            data.author.name, data.author.email) if data.author else None
-        # tag_objs = [self.ensure_tag(tag.name) for tag in data.tags]
+    def create_post(self, data: PostCreate, author: Author) -> PostORM:
+        author_obj = self.ensure_author(author.name, author.email)
 
         new_post = PostORM(
             title=data.title,

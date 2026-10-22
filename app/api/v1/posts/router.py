@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.v1.posts.repository import PostRepository
-from app.api.v1.posts.schemas import PaginatedPost, PostCreate, PostPublic, PostSummary, PostUpdate
+from app.api.v1.posts.schemas import Author, PaginatedPost, PostCreate, PostPublic, PostSummary, PostUpdate
 from app.core.db import get_db
 from app.core.security import get_current_user
 
@@ -137,9 +137,10 @@ def create_post(
     user: dict = Depends(get_current_user)
 ):
     repository = PostRepository(db)
+    author = Author(name=user["username"], email=user["email"])
 
     try:
-        new_post = repository.create_post(post)
+        new_post = repository.create_post(post, author=author)
         db.commit()
         db.refresh(new_post)
         return new_post
