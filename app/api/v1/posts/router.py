@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.v1.posts.repository import PostRepository
 from app.api.v1.posts.schemas import PaginatedPost, PostCreate, PostPublic, PostSummary, PostUpdate
 from app.core.db import get_db
+from app.core.security import get_current_user
 
 # tags sirve para los metadatos de la API
 router = APIRouter(prefix="/posts", tags=["posts"])
@@ -130,7 +131,11 @@ def get_post(
     response_description="Post creado con éxito",
     status_code=status.HTTP_201_CREATED
 )
-def create_post(post: PostCreate, db: Session = Depends(get_db)):
+def create_post(
+    post: PostCreate,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
     repository = PostRepository(db)
 
     try:
@@ -153,7 +158,12 @@ def create_post(post: PostCreate, db: Session = Depends(get_db)):
     response_model=PostPublic,
     response_description="Post actualizado con éxito"
 )
-def update_post(post_id: int, data: PostUpdate, db: Session = Depends(get_db)):
+def update_post(
+    post_id: int,
+    data: PostUpdate,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
     repository = PostRepository(db)
     post = repository.get(post_id)
 
@@ -176,7 +186,11 @@ def update_post(post_id: int, data: PostUpdate, db: Session = Depends(get_db)):
 
 
 @router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(post_id: int, db: Session = Depends(get_db)):
+def delete_post(
+    post_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
     repository = PostRepository(db)
     post = repository.get(post_id)
 
