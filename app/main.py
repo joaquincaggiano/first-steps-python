@@ -1,6 +1,9 @@
+import os
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
+from app.core.config import MEDIA_DIR, MEDIA_URL
 from app.core.db import Base, engine
 from app.api.v1.posts.router import router as posts_router
 from app.api.v1.auth.router import router as auth_router
@@ -20,6 +23,9 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(posts_router)
     app.include_router(uploads_router)
+    
+    os.makedirs(MEDIA_DIR, exist_ok=True)
+    app.mount(MEDIA_URL, StaticFiles(directory=MEDIA_DIR), name="media")
 
     return app
 
