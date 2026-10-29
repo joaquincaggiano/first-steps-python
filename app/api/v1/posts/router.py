@@ -1,6 +1,6 @@
 from math import ceil
-from typing import List, Literal, Optional, Union
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from typing import Annotated, List, Literal, Optional, Union
+from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, UploadFile, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -8,6 +8,7 @@ from app.api.v1.posts.repository import PostRepository
 from app.api.v1.posts.schemas import Author, PaginatedPost, PostCreate, PostPublic, PostSummary, PostUpdate
 from app.core.db import get_db
 from app.core.security import get_current_user
+from app.services.file_storage import save_uploaded_file
 
 # tags sirve para los metadatos de la API
 router = APIRouter(prefix="/posts", tags=["posts"])
@@ -132,15 +133,26 @@ def get_post(
     status_code=status.HTTP_201_CREATED
 )
 def create_post(
-    post: PostCreate,
+    post: Annotated[PostCreate, Depends(PostCreate.as_form)],
+    image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
     repository = PostRepository(db)
     author = Author(name=user["username"], email=user["email"])
+    saved_image = None
 
     try:
-        new_post = repository.create_post(post, author=author)
+        if image:
+            saved_image = save_uploaded_file(image)
+
+        image_url = saved_image["url"] if saved_image else None
+
+        new_post = repository.create_post(
+            post,
+            author=author,
+            image_url=image_url
+        )
         db.commit()
         db.refresh(new_post)
         return new_post

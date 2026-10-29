@@ -95,13 +95,19 @@ class PostRepository:
 
         return tag_obj
 
-    def create_post(self, data: PostCreate, author: Author) -> PostORM:
+    def create_post(
+        self,
+        data: PostCreate,
+        author: Author,
+        image_url: Optional[str] = None
+    ) -> PostORM:
         author_obj = self.ensure_author(author.name, author.email)
 
         new_post = PostORM(
             title=data.title,
             content=data.content,
             author=author_obj,
+            image_url=image_url,
         )
 
         for tag in data.tags:
