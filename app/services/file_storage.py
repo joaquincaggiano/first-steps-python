@@ -2,7 +2,7 @@ import os
 import shutil
 import uuid
 from fastapi import HTTPException, UploadFile, status
-from app.core.config import MEDIA_DIR, MEDIA_URL
+from app.core.config import MEDIA_DIR, MEDIA_URL, MAX_FILE_SIZE
 
 MIMES_ALLOWED = ["image/jpeg", "image/png"]
 
@@ -24,7 +24,15 @@ def save_uploaded_file(file: UploadFile) -> dict:
     file_path = os.path.join(MEDIA_DIR, filename)
 
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        shutil.copyfileobj(file.file, buffer, length=1024 * 1024)  # 1MB
+
+    size = os.path.getsize(file_path)
+    if size > MAX_FILE_SIZE * 1024 * 1024:
+        os.remove(file_path)
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=f"El archivo es demasiado grande (>{MAX_FILE_SIZE}MB)"
+        )
 
     return {
         "filename": filename,
