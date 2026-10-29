@@ -1,5 +1,6 @@
 from math import ceil
 from typing import Literal, Optional, Sequence, Tuple
+from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -11,6 +12,15 @@ from app.services.pagination import paginate_query
 class TagRepository:
     def __init__(self, db: Session):
         self.db = db
+
+    def get_tag(self, tag_id: int) -> TagORM:
+        tag_obj = self.db.get(TagORM, tag_id)
+
+        if not tag_obj:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Tag no encontrado")
+
+        return tag_obj
 
     def list_tags(
         self,
@@ -44,7 +54,7 @@ class TagRepository:
         # model_validate is used to convert the SQLAlchemy model to the Pydantic model
         result["items"] = [TagPublic.model_validate(
             item) for item in result["items"]]
-        
+
         return result
 
     def create_tag(self, name: str):
@@ -60,3 +70,30 @@ class TagRepository:
             self.db.flush()
 
         return tag_obj
+
+    def update_tag(self, tag_id: int, name: str) -> TagORM:
+        tag_obj = self.get_tag(tag_id)
+        normalized_name = name.strip().lower()
+
+        existing = self.db.execute(
+            select(TagORM).where(
+                TagORM.name.ilike(normalized_name),
+                TagORM.id != tag_id,
+            )
+        ).scalar_one_or_none()
+
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Ya existe un tag con ese nombre",
+            )
+
+        tag_obj.name = normalized_name
+        self.db.flush()
+        self.db.refresh(tag_obj)
+
+        return tag_obj
+
+    def delete_tag(self, tag_id: int) -> None:
+        tag_obj = self.get_tag(tag_id)
+        self.db.delete(tag_obj)
