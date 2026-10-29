@@ -1,4 +1,4 @@
-from typing import Annotated, List, Literal, Optional
+from typing import Annotated, List, Optional
 from fastapi import Form
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -113,16 +113,3 @@ class PostSummary(BaseModel):
 
     # Para que pueda validar objetos de tipo PostORM
     model_config = ConfigDict(from_attributes=True)
-
-
-class PaginatedPost(BaseModel):
-    page: int
-    per_page: int
-    total: int
-    total_pages: int
-    has_prev: bool
-    has_next: bool
-    order_by: Literal["id", "title"]
-    direction: Literal["asc", "desc"]
-    search: Optional[str] = None
-    items: List[PostPublic]

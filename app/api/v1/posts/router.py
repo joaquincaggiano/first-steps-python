@@ -1,11 +1,11 @@
-from math import ceil
 from typing import Annotated, List, Literal, Optional, Union
 from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, UploadFile, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.api.v1.common.schemas import PaginatedResponse
 from app.api.v1.posts.repository import PostRepository
-from app.api.v1.posts.schemas import Author, PaginatedPost, PostCreate, PostPublic, PostSummary, PostUpdate
+from app.api.v1.posts.schemas import Author, PostCreate, PostPublic, PostSummary, PostUpdate
 from app.core.db import get_db
 from app.core.security import get_current_user
 from app.services.file_storage import save_uploaded_file
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/posts", tags=["posts"])
 
 @router.get(
     "",
-    response_model=PaginatedPost,
+    response_model=PaginatedResponse[PostPublic],
     response_model_exclude_none=True
 )
 def list_posts(
@@ -51,7 +51,7 @@ def list_posts(
 ):
     repository = PostRepository(db)
 
-    total, items = repository.search(
+    result = repository.search(
         query=query,
         order_by=order_by,
         direction=direction,
@@ -59,23 +59,7 @@ def list_posts(
         per_page=per_page
     )
 
-    total_pages = ceil(total / per_page) if total > 0 else 0
-    current_page = min(page, max(1, total_pages))
-    has_prev = current_page > 1
-    has_next = current_page < total_pages if total_pages > 0 else False
-
-    return PaginatedPost(
-        page=current_page,
-        per_page=per_page,
-        total=total,
-        total_pages=total_pages,
-        has_prev=has_prev,
-        has_next=has_next,
-        order_by=order_by,
-        direction=direction,
-        search=query,
-        items=[PostPublic.model_validate(item) for item in items]
-    )
+    return PaginatedResponse[PostPublic].model_validate(result)
 
 
 @router.get("/by-tags", response_model=List[PostPublic])

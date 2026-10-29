@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.api.v1.common.schemas import PaginatedResponse
 from app.api.v1.tags.repository import TagRepository
 from app.api.v1.tags.schemas import TagCreate, TagPublic
 from app.core.db import get_db
@@ -14,7 +15,7 @@ router = APIRouter(prefix="/tags", tags=["tags"])
 
 @router.get(
     "/",
-    response_model=dict,
+    response_model=PaginatedResponse[TagPublic],
     response_description="Tags listadas correctamente",
     status_code=status.HTTP_200_OK
 )
@@ -34,7 +35,7 @@ def list_tags(
         page=page,
         per_page=per_page
     )
-    return result
+    return PaginatedResponse[TagPublic].model_validate(result)
 
 
 @router.post(

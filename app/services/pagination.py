@@ -34,10 +34,14 @@ def paginate_query(
 
     if total == 0:
         return {
-            "total": 0,
-            "pages": 0,
             "page": page,
             "per_page": per_page,
+            "total": 0,
+            "total_pages": 0,
+            "has_prev": False,
+            "has_next": False,
+            "order_by": order_by,
+            "direction": direction,
             "items": [],
         }
 
@@ -51,10 +55,19 @@ def paginate_query(
     items = db.execute(query.offset(
         (page - 1) * per_page).limit(per_page)).scalars().all()
 
+    total_pages = ceil(total / per_page)
+
+    has_prev = page > 1
+    has_next = page < total_pages if total_pages > 0 else False
+
     return {
-        "total": total,
-        "pages": ceil(total / per_page),
         "page": page,
         "per_page": per_page,
+        "total": total,
+        "total_pages": total_pages,
+        "has_prev": has_prev,
+        "has_next": has_next,
+        "order_by": order_by,
+        "direction": direction,
         "items": items,
     }

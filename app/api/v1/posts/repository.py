@@ -3,8 +3,9 @@ from typing import List, Literal, Optional, Sequence, Tuple
 from pydantic import EmailStr
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
-from app.api.v1.posts.schemas import Author, PostCreate
+from app.api.v1.posts.schemas import Author, PostCreate, PostPublic
 from app.models import PostORM, AuthorORM, TagORM
+from app.services.pagination import paginate_query
 
 
 class PostRepository:
@@ -25,34 +26,33 @@ class PostRepository:
         direction: Literal["asc", "desc"],
         page: int,
         per_page: int,
-    ) -> Tuple[int, Sequence[PostORM]]:
+    ) -> dict:
         results = select(PostORM)
 
         if query:
             results = results.where(PostORM.title.ilike(f"%{query}%"))
 
-        total = self.db.scalar(select(func.count()).select_from(
-            results.subquery())) or 0
+        allowed_order = {
+            "id": PostORM.id,
+            "title": func.lower(PostORM.title),
+        }
 
-        if total == 0:
-            return 0, []
+        result = paginate_query(
+            db=self.db,
+            model=PostORM,
+            base_query=results,
+            page=page,
+            per_page=per_page,
+            order_by=order_by,
+            direction=direction,
+            allowed_order=allowed_order
+        )
 
-        total_pages = ceil(total / per_page)
+        # model_validate is used to convert the SQLAlchemy model to the Pydantic model
+        result["items"] = [PostPublic.model_validate(
+            item) for item in result["items"]]
 
-        current_page = min(page, max(1, total_pages))
-
-        order_col = PostORM.id if order_by == "id" else func.lower(
-            PostORM.title)
-
-        results = results.order_by(
-            order_col.asc() if direction == "asc" else order_col.desc())
-
-        start = (current_page - 1) * per_page
-        items = self.db.execute(
-            results.limit(per_page).offset(start)
-        ).scalars().all()
-
-        return total, items
+        return result
 
     def by_tags(self, tags: List[str]) -> Sequence[PostORM]:
         normalized_tags = [tag.strip().lower() for tag in tags if tag.strip()]
@@ -85,7 +85,7 @@ class PostRepository:
 
     def ensure_tag(self, name: str) -> TagORM:
         normalized_name = name.strip().lower()
-        
+
         tag_obj = self.db.execute(
             select(TagORM).where(TagORM.name.ilike(normalized_name))
         ).scalar_one_or_none()
