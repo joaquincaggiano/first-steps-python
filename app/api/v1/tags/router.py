@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.common.schemas import PaginatedResponse
 from app.api.v1.tags.repository import TagRepository
-from app.api.v1.tags.schemas import TagCreate, TagPublic
+from app.api.v1.tags.schemas import TagCreate, TagPublic, TagUpdate
 from app.core.db import get_db
 from app.core.security import get_current_user
 
@@ -61,3 +61,50 @@ def create_tag(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al crear el tag"
         )
+
+
+@router.put(
+    "/{tag_id}",
+    response_model=TagPublic,
+    response_description="Tag actualizado correctamente",
+    status_code=status.HTTP_200_OK
+)
+def update_tag(
+    tag_id: int,
+    tag: TagUpdate,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    try:
+        repository = TagRepository(db)
+        updated_tag = repository.update_tag(tag_id, tag.name)
+        db.commit()
+        return TagPublic.model_validate(updated_tag)
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al actualizar el tag"
+        )
+        
+@router.delete(
+  "/{tag_id}",
+  response_description="Tag eliminado correctamente",
+  status_code=status.HTTP_200_OK
+)
+def delete_tag(
+  tag_id: int,
+  db: Session = Depends(get_db),
+  user: dict = Depends(get_current_user)
+):
+  try:
+    repository = TagRepository(db)
+    repository.delete_tag(tag_id)
+    db.commit()
+    return {"message": "Tag eliminado correctamente"}
+  except SQLAlchemyError:
+    db.rollback()
+    raise HTTPException(
+      status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+      detail="Error al eliminar el tag"
+    )

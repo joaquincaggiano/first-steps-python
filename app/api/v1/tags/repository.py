@@ -90,10 +90,10 @@ class TagRepository:
 
         tag_obj.name = normalized_name
         self.db.flush()
-        self.db.refresh(tag_obj)
 
         return tag_obj
 
     def delete_tag(self, tag_id: int) -> None:
         tag_obj = self.get_tag(tag_id)
         self.db.delete(tag_obj)
+        return
