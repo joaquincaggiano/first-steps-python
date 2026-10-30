@@ -86,25 +86,45 @@ def update_tag(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al actualizar el tag"
         )
-        
+
+
 @router.delete(
-  "/{tag_id}",
-  response_description="Tag eliminado correctamente",
-  status_code=status.HTTP_200_OK
+    "/{tag_id}",
+    response_description="Tag eliminado correctamente",
+    status_code=status.HTTP_200_OK
 )
 def delete_tag(
-  tag_id: int,
-  db: Session = Depends(get_db),
-  user: dict = Depends(get_current_user)
+    tag_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
-  try:
+    try:
+        repository = TagRepository(db)
+        repository.delete_tag(tag_id)
+        db.commit()
+        return {"message": "Tag eliminado correctamente"}
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al eliminar el tag"
+        )
+
+
+@router.get(
+    "/most-popular",
+    response_model=TagPublic,
+    response_description="Tag más popular",
+    status_code=status.HTTP_200_OK
+)
+def most_popular(
+    db: Session = Depends(get_db)
+):
     repository = TagRepository(db)
-    repository.delete_tag(tag_id)
-    db.commit()
-    return {"message": "Tag eliminado correctamente"}
-  except SQLAlchemyError:
-    db.rollback()
-    raise HTTPException(
-      status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-      detail="Error al eliminar el tag"
-    )
+    result = repository.most_popular()
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se encontró el tag más popular"
+        )
+    return TagPublic.model_validate(result)
